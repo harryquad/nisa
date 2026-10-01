@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NISAでいくら得？税金の差 計算｜課税口座（特定口座）と比べて払わずに済む税金（20.315%）</title>
+<meta name="description" content="投資した金額・利回り・年数（または利益の額）を入れるだけで、課税口座（特定口座）なら運用益や配当にかかる税金（20.315%）がいくらになり、NISAならいくら得するかを計算する無料ツールです。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/zeikin/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>NISAでいくら得？税金の差 計算</h1>
+  <p class="lead">ふつうの証券口座（課税口座）では、運用益や配当に<strong>20.315%</strong>の税金がかかります。NISAなら<strong>この税金がゼロ</strong>です。いくら得になるかを計算します。</p>
+
+  <div class="card">
+    <div class="field"><label for="mode">計算のしかた</label>
+      <select id="mode"><option value="tsumi">毎月積み立てる</option><option value="lump">一括で投資する</option><option value="profit">利益・配当の額から計算する</option></select></div>
+    <div class="row" id="investRow">
+      <div class="field"><label for="amount" id="amountLabel">毎月の積立額</label><input type="number" id="amount" min="0" value="50000"><div class="hint" id="amountHint">円単位</div></div>
+      <div class="field"><label for="rate">想定利回り（年）</label><input type="number" id="rate" min="0" max="20" step="0.1" value="4"><div class="hint">%</div></div>
+    </div>
+    <div class="row" id="investRow2">
+      <div class="field"><label for="years">運用する年数</label><input type="number" id="years" min="1" max="60" value="20"></div>
+      <div class="field"><label for="div">そのうち配当・分配金として受け取る割合（年）</label><input type="number" id="div" min="0" max="10" step="0.1" value="0"><div class="hint">%。分配金を出さない投資信託なら0</div></div>
+    </div>
+    <div class="row" id="profitRow" hidden>
+      <div class="field"><label for="gain">売却益（利益）</label><input type="number" id="gain" min="0" value="500000"><div class="hint">円単位</div></div>
+      <div class="field"><label for="dividend">配当・分配金（年）</label><input type="number" id="dividend" min="0" value="50000"><div class="hint">円単位</div></div>
+    </div>
+    <button id="calc">計算する</button>
+  </div>
+
+  <div class="card" id="result" hidden></div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>投資の税金のよくある質問</h2>
+    <h3>20.315%の内訳は？</h3>
+    <p>所得税15%、復興特別所得税0.315%、住民税5%の合計です。売却益だけでなく、株の配当金や投資信託の分配金にもかかります。</p>
+    <h3>特定口座（源泉徴収あり）なら確定申告はいらない？</h3>
+    <p>特定口座の「源泉徴収あり」を選ぶと、証券会社が税金を差し引いて納めてくれるので、原則として確定申告は不要です。NISA口座では税金がかからないので、そもそも申告も必要ありません。</p>
+    <h3>NISAのデメリットは？</h3>
+    <p>NISAで損失が出ても、ほかの口座の利益と相殺（損益通算）したり、損失を翌年以降に繰り越したりすることはできません。また、枠には年間・生涯の上限があります。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>課税口座の税金は、運用益を最後にまとめて売却した時点で課税される前提で計算しています（配当・分配金は受け取るたびに課税され、残りを再投資）。実際の運用成果を保証するものではありません。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$("mode").addEventListener("change", () => {
+  const m = $("mode").value;
+  $("investRow").hidden = $("investRow2").hidden = m === "profit";
+  $("profitRow").hidden = m !== "profit";
+  $("amountLabel").textContent = m === "lump" ? "投資する金額" : "毎月の積立額";
+});
+
+// 運用益のうち divRate 分を配当として受け取り、課税口座では税引き後を再投資するシミュレーション
+// 再投資した配当は取得価額（basis）に加わるため、売却時の課税対象は「評価額 − 取得価額」
+function simulate(monthly, lump, rate, years, divRate, taxed) {
+  let bal = lump, principal = lump, basis = lump, taxPaid = 0;
+  const r = rate / 12, dShare = rate ? Math.min(divRate, rate) / rate : 0;
+  for (let m = 1; m <= years * 12; m++) {
+    const growth = bal * r;
+    const div = growth * dShare;
+    const t = taxed ? div * TAX : 0;
+    taxPaid += t;
+    bal += growth - t + monthly;
+    principal += monthly;
+    basis += monthly + (div - t);
+  }
+  const sellTax = taxed ? Math.max(0, bal - basis) * TAX : 0;
+  return { bal, principal, taxPaid: taxPaid + sellTax, after: bal - sellTax };
+}
+
+function calc() {
+  const out = $("result");
+  out.hidden = false;
+  const m = $("mode").value;
+  if (m === "profit") {
+    const g = num("gain"), d = num("dividend");
+    const tg = Math.floor(g * TAX), td = Math.floor(d * TAX);
+    out.innerHTML = `
+      <div class="big">
+        <div class="stat good"><div class="k">NISAで払わずに済む税金</div><div class="v">${yen(tg + td)}</div></div>
+        <div class="stat"><div class="k">売却益の税金</div><div class="v">${yen(tg)}</div></div>
+        <div class="stat"><div class="k">配当の税金（年）</div><div class="v">${yen(td)}</div></div>
+      </div>
+      <table class="info"><tr><td>課税口座での手取り（売却益）</td><td class="num">${yen(g - tg)}</td></tr><tr><td>課税口座での手取り（配当）</td><td class="num">${yen(d - td)}</td></tr></table>`;
+  } else {
+    const amount = num("amount"), rate = num("rate") / 100, years = Math.floor(num("years")), div = num("div") / 100;
+    if (!amount || !years || !rate) { out.innerHTML = '<p class="err">金額・利回り・年数を入力してください。</p>'; return; }
+    const monthly = m === "tsumi" ? amount : 0, lump = m === "lump" ? amount : 0;
+    const nisa = simulate(monthly, lump, rate, years, div, false);
+    const kazei = simulate(monthly, lump, rate, years, div, true);
+    const diff = nisa.bal - kazei.after;
+    out.innerHTML = `
+      <div class="big">
+        <div class="stat good"><div class="k">NISAで得する額</div><div class="v">${man(diff)}</div></div>
+        <div class="stat"><div class="k">NISAで${years}年後</div><div class="v">${man(nisa.bal)}</div></div>
+        <div class="stat"><div class="k">課税口座で${years}年後（税引き後）</div><div class="v">${man(kazei.after)}</div></div>
+      </div>
+      <table class="info">
+        <tr><td>元本</td><td class="num">${man(nisa.principal)}</td></tr>
+        <tr><td>NISAの運用益（非課税）</td><td class="num">${man(nisa.bal - nisa.principal)}</td></tr>
+        <tr><td>課税口座で払う税金の合計</td><td class="num">${man(kazei.taxPaid)}</td></tr>
+      </table>
+      ${div > 0 ? '<p class="note">課税口座では、配当・分配金を受け取るたびに税金が引かれるため、再投資に回せる金額が減り、差がさらに広がります。</p>' : ""}
+      ${(monthly * 12 > 3600000 || lump > 3600000) ? '<p class="note">新NISAで1年間に投資できるのは360万円までです。超える分は課税口座での運用になります。</p>' : ""}`;
+  }
+  out.innerHTML += `<p class="note">NISAの枠をどれくらい使ったかは → <a href="/nisa/waku/">NISA 投資枠 管理</a></p>`;
+  out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("calc").addEventListener("click", calc);
+</script>
+</body>
+</html>

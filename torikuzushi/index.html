@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取り崩しシミュレーション｜老後に毎月いくら引き出すと何歳までもつ？（定額・定率）</title>
+<meta name="description" content="資産額・運用利回り・取り崩しを始める年齢を入れるだけで、毎月一定額を引き出すと何歳まで資産がもつか、何歳までもたせるなら毎月いくら使えるかを計算。定率で取り崩す方法にも対応した無料シミュレーションです。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/torikuzushi/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>取り崩しシミュレーション</h1>
+  <p class="lead">貯めた資産を運用しながら取り崩すと、<strong>何歳までもつか</strong>、あるいは<strong>毎月いくらまで使えるか</strong>を計算します。</p>
+
+  <div class="card">
+    <div class="field"><label for="mode">知りたいこと</label>
+      <select id="mode"><option value="fixed">毎月決まった額を引き出すと、何歳までもつか</option><option value="until">○歳までもたせるなら、毎月いくら引き出せるか</option><option value="rate">毎年決まった割合（定率）で引き出すと、いくらずつか</option></select></div>
+    <div class="row">
+      <div class="field"><label for="asset">取り崩しを始めるときの資産</label><input type="number" id="asset" min="0" value="2000"><div class="hint">万円単位</div></div>
+      <div class="field"><label for="age">取り崩しを始める年齢</label><input type="number" id="age" min="20" max="100" value="65"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="rate">取り崩し中の運用利回り（年）</label><input type="number" id="rate" min="0" max="20" step="0.1" value="3"><div class="hint">%。現金で持つなら0</div></div>
+      <div class="field" id="fFixed"><label for="monthly">毎月引き出す額</label><input type="number" id="monthly" min="0" value="100000"><div class="hint">円単位</div></div>
+      <div class="field" id="fUntil" hidden><label for="until">何歳までもたせる？</label><input type="number" id="until" min="21" max="120" value="95"></div>
+      <div class="field" id="fRate" hidden><label for="pct">毎年引き出す割合</label><input type="number" id="pct" min="0.1" max="50" step="0.1" value="4"><div class="hint">%（年の初めの資産に対して）</div></div>
+    </div>
+    <button id="calc">計算する</button>
+  </div>
+
+  <div class="card" id="result" hidden></div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>取り崩しのよくある質問</h2>
+    <h3>定額と定率、どちらがいい？</h3>
+    <p>定額で取り崩すと毎月の生活費の計画が立てやすい一方、相場が下がったときも同じ額を売るため、資産が早く減ることがあります。定率で取り崩すと資産がなくなりにくい一方、相場によって受け取る額が変わります。前半は定額、後半は定率など、組み合わせる方法もあります。</p>
+    <h3>「4%ルール」とは？</h3>
+    <p>毎年、資産の4%ずつ取り崩せば、長い期間資産がなくなりにくいという、アメリカの研究をもとにした考え方です。ただし、将来の相場や為替、物価の上がり方によって結果は変わるので、あくまで目安として考えましょう。</p>
+    <h3>NISAなら取り崩しにも税金がかからない？</h3>
+    <p>NISAで運用している分は、売却して取り崩しても税金がかかりません。課税口座の分は、利益の部分に20.315%の税金がかかります。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>毎月の初めに引き出し、残りを年利÷12の利回りで運用する前提の計算です（税金・手数料・物価の上昇は含みません）。実際の運用成果を保証するものではありません。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+function sync() { const m = $("mode").value; $("fFixed").hidden = m !== "fixed"; $("fUntil").hidden = m !== "until"; $("fRate").hidden = m !== "rate"; }
+$("mode").addEventListener("change", sync); sync();
+
+function drain(asset, rate, monthly, maxMonths = 1200) {
+  let bal = asset, m = 0; const r = rate / 12; const ages = [];
+  while (bal > 0 && m < maxMonths) { const w = Math.min(monthly, bal); bal = (bal - w) * (1 + r); m++; if (m % 12 === 0) ages.push(bal); }
+  return { months: m, left: bal, ages };
+}
+
+function calc() {
+  const out = $("result");
+  out.hidden = false;
+  const mode = $("mode").value, asset = num("asset") * MAN, age = num("age"), rate = num("rate") / 100;
+  if (!asset) { out.innerHTML = '<p class="err">資産の額を入力してください。</p>'; return; }
+  let html;
+  if (mode === "fixed") {
+    const mo = num("monthly");
+    if (!mo) { out.innerHTML = '<p class="err">毎月引き出す額を入力してください。</p>'; return; }
+    const d = drain(asset, rate, mo);
+    const forever = d.months >= 1200;
+    const endAge = age + d.months / 12;
+    html = `<div class="big">
+      <div class="stat ${forever ? "good" : ""}"><div class="k">資産がもつのは</div><div class="v">${forever ? "減らずに続く" : `${Math.floor(endAge)}歳${Math.round((endAge % 1) * 12)}か月ごろまで`}</div></div>
+      <div class="stat"><div class="k">取り崩す期間</div><div class="v">${forever ? "—" : `${Math.floor(d.months / 12)}年${d.months % 12}か月`}</div></div>
+      <div class="stat"><div class="k">引き出す総額</div><div class="v">${forever ? "—" : man(mo * d.months)}</div></div></div>
+      <p class="note">${forever ? "運用で増える額が、引き出す額を上回っているため、資産は減りません。" : `運用しないで現金で持っていた場合は、${Math.floor(asset / mo / 12)}年${Math.floor(asset / mo) % 12}か月でなくなります。`}</p>`;
+  } else if (mode === "until") {
+    const months = Math.max(1, Math.round((num("until") - age) * 12));
+    const r = rate / 12;
+    const mo = r ? asset * r / ((1 - Math.pow(1 + r, -months)) * (1 + r)) : asset / months;
+    html = `<div class="big">
+      <div class="stat good"><div class="k">毎月引き出せる額</div><div class="v">${yen(Math.floor(mo / 100) * 100)}</div></div>
+      <div class="stat"><div class="k">取り崩す期間</div><div class="v">${Math.floor(months / 12)}年${months % 12}か月</div></div>
+      <div class="stat"><div class="k">引き出す総額</div><div class="v">${man(mo * months)}</div></div></div>
+      <p class="note">運用しないで現金で持っていた場合は、毎月${yen(Math.floor(asset / months / 100) * 100)}になります。運用を続けることで、毎月使える額が${yen(Math.floor((mo - asset / months) / 100) * 100)}増える計算です。</p>`;
+  } else {
+    const pct = num("pct") / 100;
+    let bal = asset; const rows = [];
+    for (let y = 0; y < 30; y++) { const w = bal * pct; rows.push({ y: age + y, w, bal }); bal = (bal - w) * Math.pow(1 + rate / 12, 12); }
+    const shown = rows.filter((x, i) => i < 3 || i % 5 === 0 || i === rows.length - 1);
+    html = `<div class="big">
+      <div class="stat good"><div class="k">1年目に引き出す額（月あたり）</div><div class="v">${yen(rows[0].w / 12)}</div></div>
+      <div class="stat"><div class="k">${rows[rows.length - 1].y}歳の資産</div><div class="v">${man(rows[rows.length - 1].bal)}</div></div>
+      <div class="stat"><div class="k">${rows[rows.length - 1].y}歳の引き出し額（月）</div><div class="v">${yen(rows[rows.length - 1].w / 12)}</div></div></div>
+      <table class="info"><tr><th>年齢</th><th class="num">年の初めの資産</th><th class="num">その年の引き出し（月あたり）</th></tr>
+      ${shown.map(x => `<tr><td>${x.y}歳</td><td class="num">${man(x.bal)}</td><td class="num">${yen(x.w / 12)}</td></tr>`).join("")}</table>
+      <p class="note">定率で取り崩すと資産はなくなりませんが、${pct > rate ? "利回りより引き出す割合が大きいため、引き出せる額は年々少なくなります。" : "利回りが引き出す割合以上なので、引き出せる額は減りにくくなります。"}</p>`;
+  }
+  out.innerHTML = html + `<p class="note">老後にいくら必要かを計算するなら → <a href="/nisa/rougo/">老後資金 計算</a></p>`;
+  out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("calc").addEventListener("click", calc);
+</script>
+</body>
+</html>

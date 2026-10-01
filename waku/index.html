@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新NISA 投資枠 管理ツール｜年360万円・生涯1,800万円の使った枠と残り、売却後の枠の復活</title>
+<meta name="description" content="新NISAで買った金額・売った金額を記録するだけで、今年のつみたて投資枠・成長投資枠の残りと、生涯の非課税保有限度額（1,800万円）の残りを計算。売却で翌年に復活する枠もわかる無料ツールです。登録不要。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/waku/">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.bars .b{margin:10px 0}.bars .t{display:flex;justify-content:space-between;font-size:.88rem}
+.bars .track{height:12px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:4px}.bars .fill{height:100%;background:var(--good)}
+.list{width:100%;border-collapse:collapse;font-size:.88rem}.list th,.list td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+.list td.num{text-align:right}.list button{width:auto;padding:4px 10px;font-size:.8rem;font-weight:500;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>新NISA 投資枠 管理ツール</h1>
+  <p class="lead">新NISAで<strong>買った金額</strong>と<strong>売った金額</strong>を記録すると、<strong>今年の残りの投資枠</strong>と<strong>生涯の非課税枠（1,800万円）の残り</strong>がわかります。記録はこのブラウザの中だけに保存され、外部には送られません。</p>
+
+  <div class="card">
+    <h2>取引を追加</h2>
+    <div class="row">
+      <div class="field"><label for="date">日付</label><input type="date" id="date"></div>
+      <div class="field"><label for="kind">種類</label>
+        <select id="kind"><option value="tsumi">買った（つみたて投資枠）</option><option value="seicho">買った（成長投資枠）</option><option value="sell">売った</option></select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="amount" id="amountLabel">金額</label><input type="number" id="amount" min="0" placeholder="例：30000"><div class="hint" id="amountHint">円単位。買ったときの金額</div></div>
+      <div class="field" id="sellKindField" hidden><label for="sellKind">売ったのはどちらの枠で買ったもの？</label>
+        <select id="sellKind"><option value="tsumi">つみたて投資枠</option><option value="seicho">成長投資枠</option></select></div>
+    </div>
+    <div class="field"><label for="memo">メモ（任意）</label><input type="text" id="memo" placeholder="例：全世界株式 毎月積立"></div>
+    <div class="btns"><button id="add">追加する</button><button id="bulk" class="sub">毎月の積立をまとめて追加</button></div>
+  </div>
+
+  <div class="card" id="summary"></div>
+
+  <div class="card">
+    <h2>取引の一覧</h2>
+    <div id="list"></div>
+    <div class="btns"><button id="csv" class="sub">CSVで書き出す</button><button id="clear" class="sub">すべて消去</button></div>
+  </div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>新NISAの枠のよくある質問</h2>
+    <h3>投資枠はいくら？</h3>
+    <p>1年間に、つみたて投資枠で120万円、成長投資枠で240万円、合計360万円まで買えます。生涯で非課税で持てるのは1,800万円まで（そのうち成長投資枠は1,200万円まで）です。生涯の枠は、買ったときの金額（簿価）で数えます。</p>
+    <h3>売ったら枠は戻る？</h3>
+    <p>売った商品を買ったときの金額（簿価）の分だけ、生涯の枠が<strong>翌年に</strong>復活します。ただし、1年間に買える金額（年360万円）は増えないので、復活した枠を使うにも年間の上限の範囲内で買う必要があります。</p>
+    <h3>使わなかった年の枠は繰り越せる？</h3>
+    <p>その年に使わなかった年間の投資枠は、翌年に繰り越せません。生涯の枠1,800万円を使い切るには、最短で5年（年360万円 × 5年）かかります。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>このツールは記録と計算の補助です。正確な枠の残りは、お使いの証券会社の画面で確認してください。売った金額は「買ったときの金額（簿価）」で入力してください。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const KEY = "nisa-waku";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } };
+const store = () => { try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch {} };
+let rows = load();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const today = new Date();
+$("date").value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+$("kind").addEventListener("change", () => {
+  const sell = $("kind").value === "sell";
+  $("sellKindField").hidden = !sell;
+  $("amountLabel").textContent = sell ? "売った商品を買ったときの金額（簿価）" : "金額";
+  $("amountHint").textContent = sell ? "円単位。売った金額ではなく、買ったときの金額" : "円単位。買ったときの金額";
+});
+
+function bar(label, used, max) {
+  const pct = Math.min(100, used / max * 100);
+  return `<div class="b"><div class="t"><span>${label}</span><span>${man(used)} / ${man(max)}（残り ${man(Math.max(0, max - used))}）</span></div><div class="track"><div class="fill" style="width:${pct}%;${used > max ? "background:var(--err)" : ""}"></div></div></div>`;
+}
+
+function render() {
+  const Y = today.getFullYear();
+  const yearOf = r => Number(r.date.slice(0, 4));
+  const buys = rows.filter(r => r.kind !== "sell"), sells = rows.filter(r => r.kind === "sell");
+  const yTsumi = buys.filter(r => r.kind === "tsumi" && yearOf(r) === Y).reduce((s, r) => s + r.amount, 0);
+  const ySeicho = buys.filter(r => r.kind === "seicho" && yearOf(r) === Y).reduce((s, r) => s + r.amount, 0);
+  const sumBy = (list, k) => list.filter(r => (r.kind === "sell" ? r.from : r.kind) === k).reduce((s, r) => s + r.amount, 0);
+  // 生涯の枠：今年までに買った簿価 − 去年までに売った簿価（今年売った分は来年復活）
+  const soldBefore = sells.filter(r => yearOf(r) < Y), soldThis = sells.filter(r => yearOf(r) === Y);
+  const lifeUsed = buys.reduce((s, r) => s + r.amount, 0) - soldBefore.reduce((s, r) => s + r.amount, 0);
+  const lifeSeicho = sumBy(buys, "seicho") - sumBy(soldBefore, "seicho");
+  const revive = soldThis.reduce((s, r) => s + r.amount, 0);
+  const overYear = yTsumi > 1200000 || ySeicho > 2400000;
+
+  $("summary").innerHTML = `
+    <h2>${Y}年の投資枠</h2>
+    <div class="bars">
+      ${bar("つみたて投資枠（年120万円）", yTsumi, 1200000)}
+      ${bar("成長投資枠（年240万円）", ySeicho, 2400000)}
+    </div>
+    <h2 style="margin-top:14px">生涯の非課税保有限度額</h2>
+    <div class="bars">
+      ${bar("合計（1,800万円）", lifeUsed, 18000000)}
+      ${bar("うち成長投資枠（1,200万円）", lifeSeicho, 12000000)}
+    </div>
+    ${revive ? `<p class="note">${Y}年に売った分の簿価 <strong>${man(revive)}</strong> は、${Y + 1}年に生涯の枠として復活します。</p>` : ""}
+    ${overYear ? '<p class="err">今年の年間の投資枠を超えています。入力した金額を確認してください。</p>' : ""}
+    <p class="hint">今年の残り：つみたて投資枠 ${man(Math.max(0, 1200000 - yTsumi))}、成長投資枠 ${man(Math.max(0, 2400000 - ySeicho))}（ただし生涯の枠の残り ${man(Math.max(0, 18000000 - lifeUsed))} まで）</p>`;
+
+  const sorted = rows.map((r, i) => ({ ...r, i })).sort((a, b) => b.date.localeCompare(a.date));
+  $("list").innerHTML = rows.length ? `<div style="overflow-x:auto"><table class="list"><tr><th>日付</th><th>種類</th><th style="text-align:right">金額</th><th></th></tr>
+    ${sorted.map(r => `<tr><td>${esc(r.date)}</td><td>${r.kind === "sell" ? `売った（${r.from === "tsumi" ? "つみたて" : "成長"}）` : r.kind === "tsumi" ? "つみたて投資枠" : "成長投資枠"}${r.memo ? `<br><small style="color:var(--muted)">${esc(r.memo)}</small>` : ""}</td><td class="num">${yen(r.amount)}</td><td><button data-i="${r.i}" class="del">削除</button></td></tr>`).join("")}
+    </table></div>` : '<p class="hint">まだ記録がありません。</p>';
+  document.querySelectorAll(".del").forEach(b => b.addEventListener("click", () => {
+    if (!confirm("この記録を削除しますか？")) return;
+    rows.splice(Number(b.dataset.i), 1); store(); render();
+  }));
+}
+
+function addRow(date, amount) {
+  const kind = $("kind").value;
+  rows.push({ date, kind, from: kind === "sell" ? $("sellKind").value : null, amount, memo: $("memo").value.trim() });
+}
+$("add").addEventListener("click", () => {
+  const amount = Math.floor(num("amount"));
+  if (!amount || !$("date").value) { alert("日付と金額を入力してください。"); return; }
+  addRow($("date").value, amount); store(); $("amount").value = ""; render();
+});
+$("bulk").addEventListener("click", () => {
+  const amount = Math.floor(num("amount"));
+  if (!amount || $("kind").value === "sell") { alert("「買った」を選び、毎月の積立額を入力してください。"); return; }
+  const n = Number(prompt("何か月分を追加しますか？（日付の月から毎月追加します）", "12"));
+  if (!n || n < 1 || n > 120) return;
+  const [y, m, d] = $("date").value.split("-").map(Number);
+  for (let k = 0; k < n; k++) { const dt = new Date(y, m - 1 + k, Math.min(d, 28)); addRow(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`, amount); }
+  store(); render();
+});
+$("csv").addEventListener("click", () => {
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const csv = "﻿日付,種類,金額,メモ\n" + rows.map(r => [r.date, r.kind === "sell" ? "売却" : r.kind === "tsumi" ? "つみたて" : "成長", r.amount, q(r.memo || "")].join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "nisa-waku.csv"; a.click();
+});
+$("clear").addEventListener("click", () => { if (rows.length && confirm("すべての記録を消去します。元に戻せません。よろしいですか？")) { rows = []; store(); render(); } });
+render();
+</script>
+</body>
+</html>

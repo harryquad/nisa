@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>老後資金 計算シミュレーション｜年金と生活費からいくら足りない？今から毎月いくら積み立てる？</title>
+<meta name="description" content="年金の見込み額・老後の生活費・今の貯蓄を入れるだけで、老後に足りないお金と、退職までに毎月いくら積み立てればいいかを計算。運用した場合としない場合の差もわかる無料シミュレーションです。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/rougo/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>老後資金 計算シミュレーション</h1>
+  <p class="lead">年金の見込み額と老後の生活費から、<strong>老後に足りないお金</strong>を計算し、<strong>退職までに毎月いくら積み立てればいいか</strong>を逆算します。</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="field"><label for="age">今の年齢</label><input type="number" id="age" min="18" max="80" value="35"></div>
+      <div class="field"><label for="retire">退職する（年金を受け取り始める）年齢</label><input type="number" id="retire" min="40" max="80" value="65"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="life">何歳までの生活費を準備する？</label><input type="number" id="life" min="60" max="120" value="95"></div>
+      <div class="field"><label for="cost">老後の生活費（月額）</label><input type="number" id="cost" min="0" value="27"><div class="hint">万円単位（夫婦なら2人分）</div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="pension">受け取る年金の見込み（月額）</label><input type="number" id="pension" min="0" value="21"><div class="hint">万円単位（夫婦なら2人分）。「ねんきん定期便」の見込み額を参考に</div></div>
+      <div class="field"><label for="extra">そのほかに必要なお金（一時金）</label><input type="number" id="extra" min="0" value="500"><div class="hint">万円単位。家の修繕・車・介護・医療など</div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="savings">退職時に使える貯蓄・退職金の見込み</label><input type="number" id="savings" min="0" value="1000"><div class="hint">万円単位</div></div>
+      <div class="field"><label for="rate">退職までの運用利回り（年）</label><input type="number" id="rate" min="0" max="20" step="0.1" value="3"><div class="hint">%。運用しないなら0</div></div>
+    </div>
+    <button id="calc">計算する</button>
+  </div>
+
+  <div class="card" id="result" hidden></div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>老後資金のよくある質問</h2>
+    <h3>老後資金はいくら必要？</h3>
+    <p>人によって大きく違います。「（老後の生活費 − 年金）× 12か月 × 老後の年数」に、介護や家の修繕などの一時的な出費を足したものが目安です。持ち家か賃貸か、夫婦か単身かで大きく変わるので、自分の数字で計算することが大切です。</p>
+    <h3>年金の見込み額はどこでわかる？</h3>
+    <p>毎年誕生月に届く「ねんきん定期便」や、日本年金機構の「ねんきんネット」で確認できます。50歳以上は、今の条件で60歳まで加入した場合の見込み額が書かれています。</p>
+    <h3>足りない分をどう準備する？</h3>
+    <p>働く期間を延ばす、年金の受け取りを遅らせて増やす（繰下げ受給）、iDeCoやNISAで積み立てる、生活費を見直す、などの方法を組み合わせるのが一般的です。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>物価の上昇・税金・社会保険料は考慮していない概算です。退職後の資産は運用しない前提で、不足額を計算しています。実際の運用成果を保証するものではありません。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+function calc() {
+  const out = $("result");
+  out.hidden = false;
+  const age = num("age"), retire = num("retire"), life = num("life");
+  if (retire <= age || life <= retire) { out.innerHTML = '<p class="err">年齢の順番（今 < 退職 < 準備する年齢）を確認してください。</p>'; return; }
+  const gapMonthly = Math.max(0, (num("cost") - num("pension")) * MAN);
+  const years = life - retire;
+  const need = gapMonthly * 12 * years + num("extra") * MAN;
+  const short = Math.max(0, need - num("savings") * MAN);
+  const months = (retire - age) * 12;
+  const r = num("rate") / 100 / 12;
+  const perMonth = short ? (r ? short * r / (Math.pow(1 + r, months) - 1) : short / months) : 0;
+  const perMonth0 = short / months;
+  out.innerHTML = `
+    <div class="big">
+      <div class="stat ${short ? "warn" : "good"}"><div class="k">老後に足りないお金</div><div class="v">${short ? man(short) : "足りています"}</div></div>
+      <div class="stat good"><div class="k">退職まで毎月積み立てる額</div><div class="v">${yen(Math.ceil(perMonth / 100) * 100)}</div></div>
+      <div class="stat"><div class="k">積み立てる期間</div><div class="v">${retire - age}年</div></div>
+    </div>
+    <table class="info">
+      <tr><td>毎月の不足（生活費 − 年金）</td><td class="num">${yen(gapMonthly)}</td></tr>
+      <tr><td>${retire}歳〜${life}歳（${years}年）の不足の合計</td><td class="num">${man(gapMonthly * 12 * years)}</td></tr>
+      <tr><td>一時的に必要なお金</td><td class="num">${man(num("extra") * MAN)}</td></tr>
+      <tr><td>必要な金額の合計</td><td class="num">${man(need)}</td></tr>
+      <tr><td>退職時の貯蓄・退職金</td><td class="num">−${man(num("savings") * MAN)}</td></tr>
+      ${short ? `<tr><td>運用しない場合に毎月貯める額</td><td class="num">${yen(Math.ceil(perMonth0 / 100) * 100)}</td></tr>` : ""}
+    </table>
+    ${short && num("rate") > 0 ? `<p class="note">年${num("rate")}%で運用しながら積み立てると、運用しない場合より毎月 <strong>${yen(Math.max(0, Math.floor((perMonth0 - perMonth) / 100) * 100))}</strong> 少ない積立額で準備できる計算です。NISAやiDeCoを使えば、運用益に税金がかかりません。</p>` : ""}
+    <p class="note">iDeCoで積み立てると、掛金で所得税・住民税も安くなります → <a href="/nisa/ideco/">iDeCo 節税額 計算</a> ／ 老後に資産を取り崩していくと何歳までもつかは → <a href="/nisa/torikuzushi/">取り崩しシミュレーション</a></p>`;
+  out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("calc").addEventListener("click", calc);
+</script>
+</body>
+</html>

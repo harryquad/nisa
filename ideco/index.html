@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iDeCo 節税額 計算【2026年12月改正対応】｜掛金の上限と所得税・住民税がいくら安くなるか</title>
+<meta name="description" content="働き方と年収を選ぶだけで、iDeCoの掛金の上限（2026年12月から会社員は最大月6.2万円、自営業は7.5万円）と、掛金で所得税・住民税がいくら安くなるかを計算。手数料を引いた実質の得や、60歳までの節税額の合計もわかる無料ツールです。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/ideco/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>iDeCo 節税額 計算（2026年12月改正対応）</h1>
+  <p class="lead">iDeCoの掛金は全額が所得から差し引かれ、<strong>所得税と住民税が安くなります</strong>。働き方と年収から、<strong>掛金の上限</strong>（2026年12月の改正後）と<strong>節税額</strong>を計算します。</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="field"><label for="type">働き方</label>
+        <select id="type">
+          <option value="emp">会社員（企業年金なし）</option>
+          <option value="empdc">会社員（企業型DC・確定給付年金などあり）</option>
+          <option value="kou">公務員</option>
+          <option value="self">自営業・フリーランス（国民年金第1号）</option>
+          <option value="home">専業主婦・主夫（国民年金第3号）</option>
+        </select></div>
+      <div class="field" id="corpField" hidden><label for="corp">会社の企業年金の掛金（月額）</label><input type="number" id="corp" min="0" value="20000">
+        <div class="hint">円単位。企業型DCの会社掛金＋確定給付年金などの掛金相当額。会社の人事・年金の通知で確認できます（公務員は年金払い退職給付の掛金相当額）</div></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="income" id="incomeLabel">年収（給与の額面）</label><input type="number" id="income" min="0" value="500"><div class="hint" id="incomeHint">万円単位</div></div>
+      <div class="field"><label for="age">今の年齢</label><input type="number" id="age" min="20" max="69" value="35"></div>
+    </div>
+    <div class="field" id="socialField" hidden><label for="social">国民健康保険料・国民年金保険料（年額）</label><input type="number" id="social" min="0" value="600000"><div class="hint">円単位。確定申告書の「社会保険料控除」の金額</div></div>
+    <div class="field"><label for="monthly">iDeCoの掛金（月額）</label><input type="number" id="monthly" min="0" step="1000" value="23000"><div class="hint">円単位。空欄や上限より多い場合は、上限の額で計算します</div></div>
+    <button id="calc">節税額を計算する</button>
+  </div>
+
+  <div class="card" id="result" hidden></div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>iDeCoのよくある質問</h2>
+    <h3>2026年12月に何が変わる？</h3>
+    <p>会社員・公務員の掛金の上限は、企業年金の掛金と合わせて月6.2万円になります（企業年金がない会社員は月2.3万円から6.2万円へ）。自営業・フリーランスは月6.8万円から7.5万円（国民年金基金・付加保険料と合計）に上がります。専業主婦・主夫は月2.3万円のままです。2026年12月分の掛金（2027年1月の引き落とし）から新しい上限が使えます。また、条件を満たせば70歳まで加入できるようになります。</p>
+    <h3>iDeCoのデメリットは？</h3>
+    <p>原則として60歳まで引き出せません。また、口座を持っているだけで手数料がかかり（掛金を出している間は月171円〜、加入時に2,829円）、受け取るときには退職金や年金と同じように税金の対象になります（控除があるため、税金がかからないことも多いです）。</p>
+    <h3>NISAとどちらを優先する？</h3>
+    <p>iDeCoは掛金が全額所得控除になるのが大きな利点ですが、60歳まで引き出せません。いつでも引き出せるNISAと、老後専用で節税効果のあるiDeCoを、目的に合わせて組み合わせるのが一般的です。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>掛金の上限は、2026年12月施行の改正後の金額です。節税額は、2026年分の税制で計算した所得税（復興特別所得税を含む）と住民税（10%）の目安で、扶養家族などの控除は考慮していません。運用益が非課税になる効果や、受け取るときの税金は含めていません。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$("type").addEventListener("change", () => {
+  const t = $("type").value;
+  $("corpField").hidden = !(t === "empdc" || t === "kou");
+  $("socialField").hidden = t !== "self";
+  $("incomeLabel").textContent = t === "self" ? "所得（売上 − 経費 − 青色申告特別控除）" : t === "home" ? "年収（パートなどの給与の額面）" : "年収（給与の額面）";
+  if (t === "kou") $("corp").value = 7000;
+});
+// 改正後の掛金の上限（月額）
+function limit(t, corp) {
+  if (t === "self") return 75000;
+  if (t === "home") return 23000;
+  if (t === "emp") return 62000;
+  return Math.max(0, 62000 - corp);
+}
+const BR = [[1949000, .05, 0], [3299000, .1, 97500], [6949000, .2, 427500], [8999000, .23, 636000], [17999000, .33, 1536000], [39999000, .4, 2796000], [Infinity, .45, 4796000]];
+const taxOf = t => { if (t <= 0) return 0; const [, r, m] = BR.find(b => t <= b[0]); return (t * r - m) * 1.021; };
+function salaryIncome(a) { const d = a <= 3600000 ? a * 0.3 + 80000 : a <= 6600000 ? a * 0.2 + 440000 : a <= 8500000 ? a * 0.1 + 1100000 : 1950000; return Math.max(0, a - Math.max(740000, d)); }
+const basic = inc => (inc <= 4890000 ? 1040000 : inc <= 6550000 ? 670000 : 620000);
+// 掛金 ded を引いたときの所得税＋住民税（扶養なし）
+function totalTax(inc, social, ded) {
+  const tIT = Math.max(0, Math.floor((inc - social - ded - basic(inc)) / 1000) * 1000);
+  const tRT = Math.max(0, Math.floor((inc - social - ded - 430000) / 1000) * 1000);
+  return taxOf(tIT) + (inc > 450000 ? tRT * 0.1 : 0);
+}
+
+function calc() {
+  const out = $("result");
+  out.hidden = false;
+  const t = $("type").value;
+  const cap = limit(t, num("corp"));
+  if (!cap) { out.innerHTML = '<p class="err">企業年金の掛金が月6.2万円以上のため、iDeCoの掛金を出す枠が残っていません。</p>'; return; }
+  let m = $("monthly").value === "" ? cap : Math.min(num("monthly"), cap);
+  m = Math.floor(m / 1000) * 1000;
+  const x = num("income") * MAN;
+  const self = t === "self";
+  const inc = self ? x : salaryIncome(x);
+  const social = self ? num("social") : Math.min(x / 12, 650000) * 0.0915 * 12 + x * 0.0555;
+  const annual = m * 12;
+  const save = totalTax(inc, social, 0) - totalTax(inc, social, annual);
+  const capSave = totalTax(inc, social, 0) - totalTax(inc, social, cap * 12);
+  const years = Math.max(0, 60 - num("age"));
+  const fee = 171 * 12;
+  out.innerHTML = `
+    <div class="big">
+      <div class="stat good"><div class="k">1年で安くなる税金</div><div class="v">${yen(save)}</div></div>
+      <div class="stat"><div class="k">掛金の上限（月額・2026年12月〜）</div><div class="v">${yen(cap)}</div></div>
+      <div class="stat good"><div class="k">60歳までの節税額の合計</div><div class="v">${man(save * years)}</div></div>
+    </div>
+    <table class="info">
+      <tr><td>年間の掛金</td><td class="num">${yen(annual)}（月${yen(m)}）</td></tr>
+      <tr><td>掛金に対する節税の割合</td><td class="num">${annual ? (save / annual * 100).toFixed(1) : 0}%</td></tr>
+      <tr><td>手数料（掛金を出している間、年）</td><td class="num">${yen(fee)}〜</td></tr>
+      <tr><td>手数料を引いた実質の得（年）</td><td class="num">${yen(save - fee)}</td></tr>
+      ${m < cap ? `<tr><td>上限の月${yen(cap)}まで出した場合の節税（年）</td><td class="num">${yen(capSave)}</td></tr>` : ""}
+    </table>
+    ${save <= fee ? '<p class="note">所得税・住民税がほとんどかからないため、節税の効果が手数料より小さくなっています。この場合は、いつでも引き出せるNISAを優先する方が向いています。</p>' : ""}
+    ${t === "home" ? '<p class="note">専業主婦・主夫など自分の所得がない場合は、掛金による節税の効果はありません（運用益が非課税になる効果はあります）。</p>' : ""}
+    <p class="note">節税に加えて、運用益にも税金がかかりません。積み立てた結果いくらになるかは → <a href="/nisa/">積立シミュレーション</a></p>`;
+  out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("calc").addEventListener("click", calc);
+</script>
+</body>
+</html>

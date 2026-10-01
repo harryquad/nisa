@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目標金額から逆算 積立シミュレーション｜1000万円・2000万円にするには毎月いくら？何年？</title>
+<meta name="description" content="目標金額を入れるだけで、毎月いくら積み立てればいいか、何年かかるか、何％の利回りが必要かを逆算。老後資金2,000万円、教育資金1,000万円などの目標づくりに使える無料ツールです。">
+<link rel="canonical" href="https://harryquad.github.io/nisa/mokuhyo/">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="site-header"><div><a href="/nisa/">新NISA・iDeCo かんたん計算</a></div></header>
+<div class="wrap">
+  <h1>目標金額から逆算 積立シミュレーション</h1>
+  <p class="lead">目標金額から、<strong>毎月いくら積み立てればいいか</strong>、<strong>何年かかるか</strong>、<strong>何％の利回りが必要か</strong>を逆算します。</p>
+
+  <div class="card">
+    <div class="field"><label for="mode">知りたいこと</label>
+      <select id="mode"><option value="monthly">毎月の積立額</option><option value="years">かかる年数</option><option value="rate">必要な利回り</option></select></div>
+    <div class="row">
+      <div class="field"><label for="target">目標金額</label><input type="number" id="target" min="0" value="2000"><div class="hint">万円単位</div></div>
+      <div class="field"><label for="initial">今ある資金（最初に入れる金額）</label><input type="number" id="initial" min="0" value="0"><div class="hint">万円単位</div></div>
+    </div>
+    <div class="row">
+      <div class="field" id="fMonthly"><label for="monthly">毎月の積立額</label><input type="number" id="monthly" min="0" value="50000"><div class="hint">円単位</div></div>
+      <div class="field" id="fYears"><label for="years">積立年数</label><input type="number" id="years" min="1" max="60" value="25"></div>
+      <div class="field" id="fRate"><label for="rate">想定利回り（年）</label><input type="number" id="rate" min="0" max="20" step="0.1" value="4"><div class="hint">%</div></div>
+    </div>
+    <button id="calc">逆算する</button>
+  </div>
+
+  <div class="card" id="result" hidden></div>
+
+  <div class="ad">広告スペース</div>
+
+  <div class="card faq">
+    <h2>目標設定のよくある質問</h2>
+    <h3>目標金額はどう決める？</h3>
+    <p>老後資金なら、年金で足りない毎月の生活費 × 12か月 × 老後の年数が目安です。教育資金なら、進学先によって1人あたり数百万〜1,000万円以上かかることもあります。目的ごとに分けて考えると、積立額を決めやすくなります。</p>
+    <h3>必要な利回りが高すぎる場合は？</h3>
+    <p>必要な利回りが5%を大きく超えるなら、目標が高すぎるか、期間が短すぎる可能性があります。毎月の積立額を増やす、期間を延ばす、目標金額を見直すといった方法を考えましょう。</p>
+  </div>
+
+  <div class="card" id="related"></div>
+
+  <footer>毎月末に積み立て、年利を12で割った利回りで毎月複利運用する前提の計算です（税金・手数料は含みません）。実際の運用成果を保証するものではありません。</footer>
+</div>
+
+<script src="../assets/site.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const fv = (monthly, rate, months, initial) => { const r = rate / 12; const g = Math.pow(1 + r, months); return initial * g + (r ? monthly * (g - 1) / r : monthly * months); };
+function sync() { const m = $("mode").value; $("fMonthly").hidden = m === "monthly"; $("fYears").hidden = m === "years"; $("fRate").hidden = m === "rate"; }
+$("mode").addEventListener("change", sync); sync();
+
+function calc() {
+  const out = $("result");
+  out.hidden = false;
+  const mode = $("mode").value, target = num("target") * MAN, initial = num("initial") * MAN;
+  const monthly = num("monthly"), years = Math.floor(num("years")), rate = num("rate") / 100;
+  if (!target) { out.innerHTML = '<p class="err">目標金額を入力してください。</p>'; return; }
+  let main, label, m = monthly, y = years, r = rate;
+  if (mode === "monthly") {
+    const g = fv(1, rate, years * 12, 0), rest = target - fv(0, rate, years * 12, initial);
+    m = Math.max(0, Math.ceil(rest / g / 100) * 100);
+    main = yen(m); label = "毎月の積立額";
+  } else if (mode === "years") {
+    let mm = 0; while (fv(monthly, rate, mm, initial) < target && mm < 1200) mm++;
+    if (mm >= 1200) { out.innerHTML = '<p class="err">100年以上かかるため計算できません。積立額か利回りを見直してください。</p>'; return; }
+    y = mm / 12; main = `${Math.floor(mm / 12)}年${mm % 12}か月`; label = "かかる年数";
+  } else {
+    let lo = 0, hi = 0.5;
+    if (fv(monthly, 0, years * 12, initial) >= target) { r = 0; }
+    else { for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (fv(monthly, mid, years * 12, initial) >= target) hi = mid; else lo = mid; } r = hi; }
+    main = `年${(r * 100).toFixed(2)}%`; label = "必要な利回り";
+  }
+  const months = Math.round(y * 12);
+  const res = accumulate(m, r, months, initial);
+  out.innerHTML = `
+    <div class="big">
+      <div class="stat good"><div class="k">${label}</div><div class="v">${main}</div></div>
+      <div class="stat"><div class="k">積み立てる元本</div><div class="v">${man(res.principal)}</div></div>
+      <div class="stat"><div class="k">運用益</div><div class="v">${man(Math.max(0, res.bal - res.principal))}</div></div>
+    </div>
+    ${growthChart(res.rows)}
+    ${mode === "rate" && r > 0.06 ? '<p class="note">必要な利回りが6%を超えています。長期間この利回りを続けるのは簡単ではないので、積立額や期間も見直してみましょう。</p>' : ""}
+    ${mode === "monthly" && m * 12 > 3600000 ? '<p class="note">年間の積立額が新NISAの上限（年360万円）を超えます。夫婦それぞれのNISAやiDeCoと組み合わせることも考えましょう。</p>' : ""}
+    <p class="note">この積立をNISAで行うと、運用益にかかる税金（20.315%）がゼロになります → <a href="/nisa/zeikin/">NISAでいくら得？</a></p>`;
+  out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("calc").addEventListener("click", calc);
+</script>
+</body>
+</html>
